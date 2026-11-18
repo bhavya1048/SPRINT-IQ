@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — SprintIQ{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ title }}</h1>
+</div>
+<section class="card management-form-card p-4">
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    {% for field in form %}
+      {% if field.type not in ['CSRFTokenField', 'HiddenField', 'SubmitField'] %}
+        <div class="mb-3">
+          {{ field.label(class="form-label") }}
+          {% if field.type == 'SelectField' %}
+            {{ field(class="form-select") }}
+          {% elif field.type == 'SelectMultipleField' %}
+            {{ field(class="form-select", size=5) }}
+            <div class="form-text">Hold Ctrl (Windows) or Command (Mac) to select multiple members.</div>
+          {% elif field.type == 'TextAreaField' %}
+            {{ field(class="form-control", rows=4) }}
+          {% else %}
+            {{ field(class="form-control") }}
+          {% endif %}
+          {% if field.name == 'assigned_hours' %}
+            <div class="form-text">This number is recorded for each selected member.</div>
+          {% endif %}
+          {% for error in field.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endfor %}
+    <div class="d-flex gap-2">
+      {{ form.submit(class="btn btn-primary") }}
+      <a class="btn btn-outline-secondary" href="{{ back_url }}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

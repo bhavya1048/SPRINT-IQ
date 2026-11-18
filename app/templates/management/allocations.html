@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Workload Allocation — SprintIQ{% endblock %}
+{% block page_title %}Workload Allocation{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Workload Allocation</h1>
+  <p>Review transparent, capacity-aware recommendations before assigning work.</p>
+</div>
+
+{% if sprints %}
+  <form method="get" class="card allocation-sprint-picker p-3 mb-4">
+    <label class="form-label" for="sprint_id">Sprint</label>
+    <div class="d-flex flex-wrap gap-2">
+      <select class="form-select" id="sprint_id" name="sprint_id">
+        {% for sprint in sprints %}
+          <option value="{{ sprint.id }}" {% if selected_sprint and sprint.id == selected_sprint.id %}selected{% endif %}>
+            {{ sprint.project.name }} / {{ sprint.name }}
+          </option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-outline-primary" type="submit">View workload</button>
+    </div>
+  </form>
+
+  {% if selected_sprint %}
+    <form method="get" class="allocation-task-picker mb-4">
+      <input type="hidden" name="sprint_id" value="{{ selected_sprint.id }}">
+      <label class="form-label" for="task_id">Task selection</label>
+      <div class="d-flex flex-wrap gap-2">
+        <select class="form-select" id="task_id" name="task_id">
+          <option value="">All unassigned tasks</option>
+          {% for task in task_choices %}
+            <option value="{{ task.id }}" {% if selected_task_id == task.id %}selected{% endif %}>
+              {{ task.title }} ({{ task.estimated_hours }}h)
+            </option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-outline-primary" type="submit">Show task</button>
+      </div>
+    </form>
+
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-sm-4">
+        <div class="stat-card">
+          <div class="stat-card-icon icon-violet"><i class="bi bi-hourglass-split"></i></div>
+          <div><div class="stat-card-value">{{ "%.1f"|format(total_capacity) }}h</div><div class="stat-card-label">Total sprint capacity</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-4">
+        <div class="stat-card">
+          <div class="stat-card-icon icon-cyan"><i class="bi bi-briefcase-fill"></i></div>
+          <div><div class="stat-card-value">{{ "%.1f"|format(total_allocated) }}h</div><div class="stat-card-label">Already allocated</div></div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-4">
+        <div class="stat-card">
+          <div class="stat-card-icon icon-green"><i class="bi bi-hourglass-bottom"></i></div>
+          <div><div class="stat-card-value">{{ "%.1f"|format(total_remaining) }}h</div><div class="stat-card-label">Net remaining capacity</div></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="mb-5">
+      <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 page-header">
+        <div><h2 class="h4">Current workload</h2><p>Capacity uses stored sprint hours capped by daily capacity on weekdays.</p></div>
+        <div class="small text-muted">Overloaded: &gt;{{ overload_threshold }}% · Underutilized: &lt;{{ underutilized_threshold }}%</div>
+      </div>
+      {% if workloads %}
+        <div class="table-responsive card">
+          <table class="table align-middle mb-0 allocation-workload-table">
+            <thead><tr><th>Team member</th><th>Sprint capacity</th><th>Allocated</th><th>Remaining</th><th>Utilization</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for item in workloads %}
+                <tr>
+                  <td><strong>{{ item.member.name }}</strong><div class="small text-muted">{{ item.member.skills or 'No skills listed' }}</div></td>
+                  <td>{{ "%.1f"|format(item.capacity) }}h</td>
+                  <td>{{ "%.1f"|format(item.allocated) }}h</td>
+                  <td class="{% if item.remaining < 0 %}text-danger{% endif %}">{{ "%.1f"|format(item.remaining) }}h</td>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="progress allocation-progress" role="progressbar" aria-label="{{ item.member.name }} utilization" aria-valuenow="{{ [item.utilization, 100]|min }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar {% if item.classification == 'overloaded' %}bg-danger{% elif item.classification == 'underutilized' %}bg-info{% else %}bg-success{% endif %}" style="width: {{ [item.utilization, 100]|min }}%"></div>
+                      </div>
+                      <span class="small text-nowrap">{{ "%.1f"|format(item.utilization) }}%</span>
+                    </div>
+                  </td>
+                  <td>
+                    {% if item.classification == 'overloaded' %}
+                      <span class="badge text-bg-danger">Overloaded</span>
+                    {% elif item.classification == 'underutilized' %}
+                      <span class="badge text-bg-info">Underutilized</span>
+                    {% else %}
+                      <span class="badge text-bg-success">Balanced</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="card p-4 text-secondary">No team members are available for workload analysis.</div>
+      {% endif %}
+    </section>
+
+    <section>
+      <div class="page-header">
+        <h2 class="h4">Unassigned tasks</h2>
+        <p>Accepting a recommendation assigns the task’s estimated effort. Rejections are remembered for that task.</p>
+      </div>
+      {% for task in allocation_tasks %}
+        <article class="card allocation-task-card p-4 mb-3">
+          <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+            <div>
+              <h3 class="h5 mb-1">{{ task.title }}</h3>
+              <p class="mb-1 text-secondary">{{ task.description or 'No description.' }}</p>
+              <div class="small text-muted">
+                Required skills: {{ task.required_skills or 'None specified' }}
+                · {{ task.estimated_hours }}h · {{ task.priority|title }}
+              </div>
+            </div>
+            <span class="badge text-bg-light align-self-start">{{ task.status|replace('_', ' ')|title }}</span>
+          </div>
+
+          {% set recommendations = recommendations_by_task[task.id] %}
+          {% if recommendations %}
+            <div class="row g-3">
+              {% for recommendation in recommendations %}
+                <div class="col-12 col-xl-6">
+                  <div class="allocation-recommendation h-100 p-3">
+                    <div class="d-flex flex-wrap justify-content-between gap-2">
+                      <h4 class="h6 mb-0">{{ recommendation.member.name }}</h4>
+                      <span class="badge text-bg-primary">{{ "%.1f"|format(recommendation.score) }} / 100</span>
+                    </div>
+                    <div class="allocation-score-grid my-3">
+                      <span>Skills <strong>{{ "%.1f"|format(recommendation.skill_match) }}</strong></span>
+                      <span>Capacity <strong>{{ "%.1f"|format(recommendation.capacity_score) }}</strong></span>
+                      <span>Availability <strong>{{ "%.1f"|format(recommendation.availability_score) }}</strong></span>
+                      <span>Priority fit <strong>{{ "%.1f"|format(recommendation.priority_suitability) }}</strong></span>
+                    </div>
+                    <ul class="small text-secondary allocation-explanations">
+                      {% for explanation in recommendation.explanations.values() %}
+                        <li>{{ explanation }}</li>
+                      {% endfor %}
+                    </ul>
+                    <div class="d-flex flex-wrap gap-2">
+                      <form method="post" action="{{ url_for('management.accept_allocation', task_id=task.id, member_id=recommendation.member_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-primary" type="submit">Approve assignment</button>
+                      </form>
+                      <form method="post" action="{{ url_for('management.reject_allocation', task_id=task.id, member_id=recommendation.member_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">Reject</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="alert alert-warning" role="status">No eligible recommendations. Use a manual assignment only when you have reviewed the capacity and skill impact.</div>
+          {% endif %}
+
+          {% if members %}
+            <details class="allocation-override mt-3">
+              <summary>Manually assign a team member</summary>
+              <form method="post" action="{{ url_for('management.override_allocation', task_id=task.id) }}" class="row g-2 align-items-end mt-2">
+                {{ override_forms[task.id].hidden_tag() }}
+                <div class="col-12 col-md-6">
+                  {{ override_forms[task.id].team_member_id.label(class="form-label") }}
+                  {{ override_forms[task.id].team_member_id(class="form-select") }}
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="form-check mb-2">
+                    {{ override_forms[task.id].confirm_override(class="form-check-input") }}
+                    {{ override_forms[task.id].confirm_override.label(class="form-check-label") }}
+                  </div>
+                  <button class="btn btn-outline-primary" type="submit">Save manual assignment</button>
+                </div>
+                <div class="col-12 form-text">Required when the selected member has no matching skills or insufficient remaining capacity.</div>
+              </form>
+            </details>
+          {% endif %}
+        </article>
+      {% else %}
+        <div class="card p-4 text-secondary">No unassigned, incomplete tasks in this sprint.</div>
+      {% endfor %}
+    </section>
+  {% endif %}
+{% else %}
+  <div class="card p-5 text-center">
+    <h2 class="h5">No manageable sprints</h2>
+    <p class="text-secondary mb-0">Create a project and sprint before reviewing allocation recommendations.</p>
+  </div>
+{% endif %}
+{% endblock %}

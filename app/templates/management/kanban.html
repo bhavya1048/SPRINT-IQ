@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Tasks — SprintIQ{% endblock %}
+{% block page_title %}Tasks{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 page-header">
+  <div><h1>Task board</h1><p>Move work through To Do, In Progress, and Done.</p></div>
+  {% if current_user.role in ['administrator', 'project_manager'] %}
+    <a class="btn btn-primary" href="{{ url_for('management.create_task') }}"><i class="bi bi-plus-lg"></i> New task</a>
+  {% endif %}
+</div>
+<div class="kanban-board">
+  {% for status, label in statuses %}
+    <section class="kanban-column">
+      <div class="kanban-column-heading">
+        <h2>{{ label }}</h2>
+        <span class="badge text-bg-light">{{ tasks|selectattr('status', 'equalto', status)|list|length }}</span>
+      </div>
+      {% for task in tasks if task.status == status %}
+        <article class="card kanban-task p-3">
+          <div class="d-flex justify-content-between gap-2">
+            <span class="badge priority-{{ task.priority }}">{{ task.priority|title }}</span>
+            <span class="small text-muted">{{ task.estimated_hours }}h</span>
+          </div>
+          <h3 class="h6 mt-3 mb-1">{{ task.title }}</h3>
+          <p class="small text-secondary mb-2">{{ task.description or 'No description.' }}</p>
+          {% if task.required_skills %}
+            <div class="small text-muted mb-2">Skills: {{ task.required_skills }}</div>
+          {% endif %}
+          <div class="small text-muted mb-2">
+            <a href="{{ url_for('management.project_detail', project_id=task.sprint.project_id) }}">{{ task.sprint.project.name }}</a>
+            · {{ task.sprint.name }}
+          </div>
+          {% if task.due_date %}<div class="small text-muted mb-2">Due {{ task.due_date }}</div>{% endif %}
+          {% if task.assignments %}
+            <div class="small mb-3">Assigned: {{ task.assignments|map(attribute='team_member.name')|join(', ') }}</div>
+          {% else %}
+            <div class="small text-muted mb-3">Unassigned</div>
+          {% endif %}
+          {% if can_change_status(task) %}
+            <form method="post" action="{{ url_for('management.update_task_status', task_id=task.id) }}" class="d-flex gap-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <select name="status" class="form-select form-select-sm" aria-label="Task status">
+                {% for value, status_label in statuses %}
+                  <option value="{{ value }}" {% if task.status == value %}selected{% endif %}>{{ status_label }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-sm btn-outline-primary" type="submit">Update</button>
+            </form>
+          {% endif %}
+          {% if can_manage_task(task.sprint.project) %}
+            <div class="d-flex gap-2 mt-2">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('management.edit_task', task_id=task.id) }}">Edit</a>
+              <form method="post" action="{{ url_for('management.delete_task', task_id=task.id) }}" onsubmit="return confirm('Delete this task?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+              </form>
+            </div>
+          {% endif %}
+        </article>
+      {% else %}
+        <div class="kanban-empty">No {{ label|lower }} tasks.</div>
+      {% endfor %}
+    </section>
+  {% endfor %}
+</div>
+{% endblock %}

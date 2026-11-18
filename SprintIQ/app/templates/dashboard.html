@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — SprintIQ{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Page header -->
+<div class="page-header">
+  <h1>Good to see you 👋</h1>
+  <p>Welcome to SprintIQ — your agile project management workspace.</p>
+</div>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-card-icon icon-violet">
+        <i class="bi bi-kanban-fill"></i>
+      </div>
+      <div>
+        <div class="stat-card-value">{{ project_count }}</div>
+        <div class="stat-card-label">Active Projects</div>
+        <div class="stat-card-change">in your workspace</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-card-icon icon-cyan">
+        <i class="bi bi-lightning-charge-fill"></i>
+      </div>
+      <div>
+        <div class="stat-card-value">{{ sprint_count }}</div>
+        <div class="stat-card-label">Open Sprints</div>
+        <div class="stat-card-change">not completed</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-card-icon icon-green">
+        <i class="bi bi-check2-square"></i>
+      </div>
+      <div>
+        <div class="stat-card-value">{{ completed_task_count }}</div>
+        <div class="stat-card-label">Tasks Completed</div>
+        <div class="stat-card-change">across all sprints</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-card-icon icon-amber">
+        <i class="bi bi-people-fill"></i>
+      </div>
+      <div>
+        <div class="stat-card-value">{{ member_count }}</div>
+        <div class="stat-card-label">Team Members</div>
+        <div class="stat-card-change">in your workspace</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Two-column: activity + quick start -->
+<div class="row g-3">
+
+  <!-- Recent Activity -->
+  <div class="col-12 col-lg-7">
+    <div class="card h-100">
+      <div class="d-flex align-items-center justify-content-between p-4 pb-0">
+        <h6 class="mb-0 fw-600">Recent Activity</h6>
+        <span class="badge rounded-pill" style="background:rgba(124,58,237,.12);color:#7c3aed;font-size:.72rem;">Live</span>
+      </div>
+      <div class="mt-3">
+        <div class="activity-item">
+          <div class="activity-dot" style="background:#7c3aed;"></div>
+          <div>
+            <div class="activity-text"><strong>{{ project_count }}</strong> projects are available.</div>
+            <div class="activity-time"><a href="{{ url_for('management.projects') }}">Browse projects</a></div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:#06b6d4;"></div>
+          <div>
+            <div class="activity-text"><strong>{{ sprint_count }}</strong> sprints are open.</div>
+            <div class="activity-time"><a href="{{ url_for('management.projects') }}">View project sprints</a></div>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-dot" style="background:#10b981;"></div>
+          <div>
+            <div class="activity-text"><strong>{{ completed_task_count }}</strong> tasks are complete.</div>
+            <div class="activity-time"><a href="{{ url_for('management.tasks') }}">Open Kanban board</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Start -->
+  <div class="col-12 col-lg-5">
+    <div class="card h-100">
+      <div class="p-4">
+        <h6 class="mb-3 fw-600">Quick Start</h6>
+        <div class="d-flex flex-column gap-2">
+
+          <a href="{{ url_for('management.projects') }}" class="d-flex align-items-center gap-3 p-3 rounded-3 text-decoration-none text-reset"
+               style="background:#f5f5fa;">
+            <div class="stat-card-icon icon-violet" style="width:36px;height:36px;font-size:1rem;">
+              <i class="bi bi-plus-lg"></i>
+            </div>
+            <div>
+              <div style="font-size:.85rem;font-weight:600;">Create a Project</div>
+              <div style="font-size:.75rem;color:#6b7280;">Browse project workspace</div>
+            </div>
+          </a>
+
+          <a href="{{ url_for('management.tasks') }}" class="d-flex align-items-center gap-3 p-3 rounded-3 text-decoration-none text-reset"
+               style="background:#f5f5fa;">
+            <div class="stat-card-icon icon-cyan" style="width:36px;height:36px;font-size:1rem;">
+              <i class="bi bi-lightning-charge-fill"></i>
+            </div>
+            <div>
+              <div style="font-size:.85rem;font-weight:600;">Start a Sprint</div>
+              <div style="font-size:.75rem;color:#6b7280;">Review and update task status</div>
+            </div>
+          </a>
+
+          {% if current_user.role in ['administrator', 'project_manager'] %}
+          <a href="{{ url_for('management.team_members') }}" class="d-flex align-items-center gap-3 p-3 rounded-3 text-decoration-none text-reset"
+               style="background:#f5f5fa;">
+            <div class="stat-card-icon icon-amber" style="width:36px;height:36px;font-size:1rem;">
+              <i class="bi bi-person-plus-fill"></i>
+            </div>
+            <div>
+              <div style="font-size:.85rem;font-weight:600;">Invite Team Member</div>
+              <div style="font-size:.75rem;color:#6b7280;">Manage team capacity and skills</div>
+            </a>
+            {% endif %}
+          </div>
+
+        </div>
+
+        <!-- Health check -->
+        <div class="mt-4 pt-3" style="border-top:1px solid rgba(0,0,0,.06);">
+          <div style="font-size:.75rem;color:#9ca3af;margin-bottom:.5rem;">System</div>
+          <a href="{{ url_for('main.health_check') }}" target="_blank" class="btn-brand" id="health-check-btn">
+            <i class="bi bi-heart-pulse"></i> Health Check
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /row -->
+{% endblock %}

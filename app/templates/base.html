@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="SprintIQ — Agile project management made simple">
+  <title>{% block title %}SprintIQ{% endblock %}</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <!-- App CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<div id="wrapper">
+
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <nav id="sidebar-wrapper" aria-label="Main navigation">
+
+    <!-- Brand -->
+    <a class="sidebar-brand" href="{{ url_for('main.dashboard') }}">
+      <div class="sidebar-brand-icon">⚡</div>
+      <span class="sidebar-brand-text">SprintIQ</span>
+    </a>
+
+    <!-- Main nav -->
+    <span class="sidebar-section-label">Workspace</span>
+    <ul class="sidebar-nav">
+      <li class="sidebar-nav-item">
+        <a href="{{ url_for('main.dashboard') }}" class="sidebar-nav-link">
+          <i class="bi bi-grid-1x2-fill nav-icon"></i>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="{{ url_for('management.projects') }}" class="sidebar-nav-link">
+          <i class="bi bi-kanban-fill nav-icon"></i>
+          <span>Projects</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="{{ url_for('management.sprints') }}" class="sidebar-nav-link">
+          <i class="bi bi-lightning-charge-fill nav-icon"></i>
+          <span>Sprints</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="{{ url_for('management.tasks') }}" class="sidebar-nav-link">
+          <i class="bi bi-check2-square nav-icon"></i>
+          <span>Tasks</span>
+        </a>
+      </li>
+      {% if current_user.is_authenticated and current_user.role in ['administrator', 'project_manager'] %}
+        <li class="sidebar-nav-item">
+          <a href="{{ url_for('management.allocations') }}" class="sidebar-nav-link">
+            <i class="bi bi-person-check-fill nav-icon"></i>
+            <span>Allocation</span>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+
+    <span class="sidebar-section-label">Insights</span>
+    <ul class="sidebar-nav">
+      {% if current_user.is_authenticated and current_user.role in ['administrator', 'project_manager'] %}
+        <li class="sidebar-nav-item">
+          <a href="{{ url_for('management.risk_dashboard') }}" class="sidebar-nav-link">
+            <i class="bi bi-exclamation-triangle-fill nav-icon"></i>
+            <span>Risk Monitor</span>
+          </a>
+        </li>
+      {% endif %}
+      <li class="sidebar-nav-item">
+        <a href="#" class="sidebar-nav-link disabled" style="opacity:.45; pointer-events:none;">
+          <i class="bi bi-bar-chart-line-fill nav-icon"></i>
+          <span>Reports</span>
+        </a>
+      </li>
+      {% if current_user.is_authenticated and current_user.role in ['administrator', 'project_manager'] %}
+        <li class="sidebar-nav-item">
+          <a href="{{ url_for('management.team_members') }}" class="sidebar-nav-link">
+            <i class="bi bi-people-fill nav-icon"></i>
+            <span>Team Members</span>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      v0.4.0 &nbsp;·&nbsp; Phase 4
+    </div>
+  </nav>
+
+  <!-- ═══════════════ PAGE CONTENT ═══════════════ -->
+  <div id="page-content-wrapper">
+
+    <!-- Top nav -->
+    <header id="topnav">
+      <button id="sidebar-toggle-btn" aria-label="Toggle sidebar" title="Toggle sidebar">
+        <span></span><span></span><span></span>
+      </button>
+
+      <span class="topnav-title">{% block page_title %}{% endblock %}</span>
+
+      <div class="topnav-right">
+        <!-- Health check link -->
+        <a href="{{ url_for('main.health_check') }}" class="topnav-icon-btn" title="System health" target="_blank">
+          <i class="bi bi-heart-pulse"></i>
+        </a>
+        {% if current_user.is_authenticated %}
+          <span class="small text-muted d-none d-sm-inline">{{ current_user.username }}</span>
+          <form action="{{ url_for('auth.logout') }}" method="post" class="m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Sign out</button>
+          </form>
+        {% else %}
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('auth.login') }}">Sign in</a>
+          <a class="btn btn-sm btn-primary" href="{{ url_for('auth.register') }}">Create account</a>
+        {% endif %}
+      </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="main-content">
+
+      <!-- Flash messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-container">
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+
+    </main>
+  </div><!-- /#page-content-wrapper -->
+
+</div><!-- /#wrapper -->
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- App JS -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_scripts %}{% endblock %}
+
+</body>
+</html>

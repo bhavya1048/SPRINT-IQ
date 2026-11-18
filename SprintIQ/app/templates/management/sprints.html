@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Sprints — SprintIQ{% endblock %}
+{% block page_title %}Sprints{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Sprints</h1>
+  <p>Sprints across your projects.</p>
+</div>
+{% if sprints %}
+  <div class="table-responsive card">
+    <table class="table align-middle mb-0">
+      <thead><tr><th>Sprint</th><th>Project</th><th>Dates</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for sprint in sprints %}
+        <tr>
+          <td><strong>{{ sprint.name }}</strong><div class="small text-muted">{{ sprint.sprint_goal or '' }}</div></td>
+          <td><a href="{{ url_for('management.project_detail', project_id=sprint.project_id) }}">{{ sprint.project.name }}</a></td>
+          <td>{{ sprint.start_date }} — {{ sprint.end_date }}</td>
+          <td>{{ sprint.status|title }}</td>
+          <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('management.project_detail', project_id=sprint.project_id) }}">Open</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="card p-4 text-secondary">No sprints have been created yet.</div>
+{% endif %}
+{% endblock %}

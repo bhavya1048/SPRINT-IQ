@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Sprint Risk Monitor — SprintIQ{% endblock %}
+{% block page_title %}Risk Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+  <div>
+    <h1>Sprint Risk Monitor</h1>
+    <p>Rule-based alerts for deadlines, workload, sprint progress, and task coverage.</p>
+  </div>
+  <a class="btn btn-outline-primary" href="{{ url_for('main.dashboard') }}">Back to dashboard</a>
+</div>
+
+<form method="get" class="card risk-filters p-3 mb-4">
+  <div class="row g-3 align-items-end">
+    <div class="col-12 col-md-3">
+      <label class="form-label" for="risk-project-filter">Project</label>
+      <select class="form-select" id="risk-project-filter" name="project_id">
+        <option value="">All accessible projects</option>
+        {% for project in projects %}
+          <option value="{{ project.id }}" {% if selected_project_id == project.id %}selected{% endif %}>
+            {{ project.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-3">
+      <label class="form-label" for="risk-sprint-filter">Sprint</label>
+      <select class="form-select" id="risk-sprint-filter" name="sprint_id">
+        <option value="">All sprints</option>
+        {% for sprint in sprints %}
+          <option value="{{ sprint.id }}" data-project-id="{{ sprint.project_id }}" {% if selected_sprint_id == sprint.id %}selected{% endif %}>
+            {{ sprint.project.name }} / {{ sprint.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-2">
+      <label class="form-label" for="risk-severity-filter">Severity</label>
+      <select class="form-select" id="risk-severity-filter" name="severity">
+        <option value="">All severities</option>
+        {% for severity in severity_options %}
+          <option value="{{ severity }}" {% if selected_severity == severity %}selected{% endif %}>{{ severity|title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-2">
+      <label class="form-label" for="risk-category-filter">Category</label>
+      <select class="form-select" id="risk-category-filter" name="category">
+        <option value="">All categories</option>
+        {% for category, label in category_labels.items() %}
+          <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-2 d-flex gap-2">
+      <button class="btn btn-primary flex-grow-1" type="submit">Apply</button>
+      {% if selected_project_id or selected_sprint_id or selected_severity or selected_category %}
+        <a class="btn btn-outline-secondary" href="{{ url_for('management.risk_dashboard') }}">Clear</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+<section class="row g-3 mb-4" aria-label="Risk totals">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <article class="stat-card h-100">
+      <div class="stat-card-icon icon-violet"><i class="bi bi-shield-exclamation"></i></div>
+      <div><div class="stat-card-value">{{ total_risks }}</div><div class="stat-card-label">Active risks</div></div>
+    </article>
+  </div>
+  {% for severity, color in [('HIGH', 'icon-red'), ('MEDIUM', 'icon-amber'), ('LOW', 'icon-cyan')] %}
+    <div class="col-12 col-sm-6 col-xl-3">
+      <article class="stat-card h-100">
+        <div class="stat-card-icon {{ color }}"><i class="bi bi-exclamation-circle-fill"></i></div>
+        <div><div class="stat-card-value">{{ severity_counts[severity] }}</div><div class="stat-card-label">{{ severity|title }} risks</div></div>
+      </article>
+    </div>
+  {% endfor %}
+</section>
+
+<section class="mb-4" aria-label="Risks grouped by category">
+  <h2 class="h5 mb-3">Risks by category</h2>
+  <div class="row g-3">
+    {% for category, label in category_labels.items() %}
+      <div class="col-12 col-sm-6 col-xl-3">
+        <article class="card risk-category-card p-3 h-100">
+          <span class="text-secondary small">{{ label }}</span>
+          <strong class="fs-4">{{ category_counts[category] }}</strong>
+        </article>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section aria-label="Risk details">
+  <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 page-header">
+    <div>
+      <h2 class="h4">Risk details</h2>
+      <p>Showing {{ total_risks }} risk(s) for the selected filters.</p>
+    </div>
+  </div>
+  {% if alerts %}
+    <div class="risk-list">
+      {% for alert in alerts %}
+        <article class="card risk-alert-card p-4" data-risk-type="{{ alert.risk_type }}" data-severity="{{ alert.severity }}">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+            <div>
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <h3 class="h5 mb-0">{{ alert.risk_label }}</h3>
+                <span class="badge text-bg-{{ 'danger' if alert.severity == 'HIGH' else 'warning' if alert.severity == 'MEDIUM' else 'info' }}">{{ alert.severity }}</span>
+                <span class="badge text-bg-light">{{ alert.category_label }}</span>
+              </div>
+              <p class="mb-0">{{ alert.description }}</p>
+            </div>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('management.project_detail', project_id=alert.project_id) }}">
+              {{ alert.project.name }}
+            </a>
+          </div>
+          <div class="risk-context small mb-3">
+            <span><strong>Project:</strong> {{ alert.project.name }}</span>
+            <span><strong>Sprint:</strong> {{ alert.sprint.name }}</span>
+            {% if alert.task %}
+              <span><strong>Task:</strong> {{ alert.task.title }}</span>
+            {% endif %}
+            {% if alert.team_member %}
+              <span><strong>Team member:</strong> {{ alert.team_member.name }}</span>
+            {% endif %}
+          </div>
+          <div class="risk-explanation">
+            <p class="mb-2"><strong>Reason:</strong> {{ alert.reason }}</p>
+            <p class="mb-0"><strong>Suggested action:</strong> {{ alert.action }}</p>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card risk-empty-state p-5 text-center">
+      <i class="bi bi-check2-circle text-success fs-2 mb-2" aria-hidden="true"></i>
+      <h3 class="h5">No risks match these filters</h3>
+      <p class="text-secondary mb-0">No active risk conditions were found in the accessible projects.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/risk_dashboard.js') }}"></script>
+{% endblock %}

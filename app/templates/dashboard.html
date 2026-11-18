@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — SprintIQ{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <h1>Project Insights</h1>
+      <p>Live project, sprint, task, and workload data from your workspace.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      {% if current_user.role in ['administrator', 'project_manager'] %}
+        <a class="btn btn-primary" href="{{ url_for('management.create_project') }}">Create project</a>
+      {% endif %}
+      <a class="btn btn-outline-primary" href="{{ url_for('management.sprints') }}">View sprints</a>
+    </div>
+  </div>
+</div>
+
+<form method="get" class="card dashboard-filters p-3 mb-4">
+  <div class="row g-3 align-items-end">
+    <div class="col-12 col-md-5">
+      <label class="form-label" for="project-filter">Project</label>
+      <select class="form-select" id="project-filter" name="project_id">
+        <option value="">All projects</option>
+        {% for project in projects %}
+          <option value="{{ project.id }}" {% if selected_project_id == project.id %}selected{% endif %}>
+            {{ project.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-5">
+      <label class="form-label" for="sprint-filter">Sprint</label>
+      <select class="form-select" id="sprint-filter" name="sprint_id">
+        <option value="">All sprints</option>
+        {% for sprint in filter_sprints %}
+          <option value="{{ sprint.id }}" data-project-id="{{ sprint.project_id }}" {% if selected_sprint_id == sprint.id %}selected{% endif %}>
+            {{ sprint.project.name }} / {{ sprint.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-2 d-flex gap-2">
+      <button class="btn btn-primary flex-grow-1" type="submit">Apply</button>
+      {% if selected_project_id or selected_sprint_id %}
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}">Clear</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="form-text mt-2">Project and sprint filters apply to project, sprint, task, and workload data. Total team members remains workspace-wide.</div>
+</form>
+
+<section class="row g-3 mb-4" aria-label="Workspace statistics">
+  <div class="col-12 col-sm-6 col-xl-3"><article class="stat-card h-100" data-stat="projects"><div class="stat-card-icon icon-violet"><i class="bi bi-kanban-fill"></i></div><div><div class="stat-card-value">{{ total_projects }}</div><div class="stat-card-label">Total Projects</div></div></article></div>
+  <div class="col-12 col-sm-6 col-xl-3"><article class="stat-card h-100" data-stat="sprints"><div class="stat-card-icon icon-cyan"><i class="bi bi-lightning-charge-fill"></i></div><div><div class="stat-card-value">{{ total_sprints }}</div><div class="stat-card-label">Total Sprints</div></div></article></div>
+  <div class="col-12 col-sm-6 col-xl-3"><article class="stat-card h-100" data-stat="tasks"><div class="stat-card-icon icon-violet"><i class="bi bi-list-task"></i></div><div><div class="stat-card-value">{{ total_tasks }}</div><div class="stat-card-label">Total Tasks</div></div></article></div>
+  <div class="col-12 col-sm-6 col-xl-3"><article class="stat-card h-100" data-stat="completed"><div class="stat-card-icon icon-green"><i class="bi bi-check2-square"></i></div><div><div class="stat-card-value">{{ completed_tasks }}</div><div class="stat-card-label">Completed Tasks</div></div></article></div>
+  <div class="col-12 col-sm-6 col-xl-3"><article class="stat-card h-100" data-stat="pending"><div class="stat-card-icon icon-amber"><i class="bi bi-hourglass-split"></i></div><div><div class="stat-card-value">{{ pending_tasks }}</div><div class="stat-card-label">Pending Tasks</div></div></article></div>
+  <div class="col-12 col-sm-6 col-xl-3"><article class="stat-card h-100" data-stat="in-progress"><div class="stat-card-icon icon-cyan"><i class="bi bi-arrow-repeat"></i></div><div><div class="stat-card-value">{{ in_progress_tasks }}</div><div class="stat-card-label">In Progress</div></div></article></div>
+  <div class="col-12 col-sm-6 col-xl-3"><article class="stat-card h-100" data-stat="team-members"><div class="stat-card-icon icon-amber"><i class="bi bi-people-fill"></i></div><div><div class="stat-card-value">{{ total_team_members }}</div><div class="stat-card-label">Team Members</div><div class="stat-card-change">workspace-wide</div></div></article></div>
+</section>
+
+{% if risk_summary %}
+  <section class="card dashboard-risk-summary p-4 mb-4" aria-label="Sprint risk summary">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <h2 class="h5 mb-1">Sprint risk monitor</h2>
+        <p class="mb-0 text-secondary">{{ risk_summary.total }} active risk(s) in your accessible projects</p>
+      </div>
+      <div class="d-flex flex-wrap gap-3 align-items-center" aria-label="Risk counts by severity">
+        <span class="badge text-bg-danger">High {{ risk_summary.high }}</span>
+        <span class="badge text-bg-warning">Medium {{ risk_summary.medium }}</span>
+        <span class="badge text-bg-info">Low {{ risk_summary.low }}</span>
+        <a class="btn btn-outline-primary" href="{{ url_for('management.risk_dashboard') }}">Review risks</a>
+      </div>
+    </div>
+  </section>
+{% endif %}
+
+<section class="row g-3 mb-4" aria-label="Charts">
+  <div class="col-12 col-xl-6">
+    <article class="card dashboard-chart-card h-100 p-4">
+      <h2 class="h5">Task status distribution</h2>
+      {% if chart_data.status.total %}
+        <div class="dashboard-chart-wrap dashboard-chart-doughnut"><canvas id="task-status-chart" role="img" aria-label="Doughnut chart of task statuses"></canvas></div>
+      {% else %}
+        <div class="dashboard-chart-empty">No tasks match the selected filters.</div>
+      {% endif %}
+    </article>
+  </div>
+  <div class="col-12 col-xl-6">
+    <article class="card dashboard-chart-card h-100 p-4">
+      <h2 class="h5">Task priority distribution</h2>
+      {% if chart_data.priority.total %}
+        <div class="dashboard-chart-wrap"><canvas id="task-priority-chart" role="img" aria-label="Bar chart of task priorities"></canvas></div>
+      {% else %}
+        <div class="dashboard-chart-empty">No tasks match the selected filters.</div>
+      {% endif %}
+    </article>
+  </div>
+  <div class="col-12 col-xl-6">
+    <article class="card dashboard-chart-card h-100 p-4">
+      <h2 class="h5">Sprint completion</h2>
+      {% if chart_data.sprint_progress.rows %}
+        <div class="dashboard-chart-wrap"><canvas id="sprint-progress-chart" role="img" aria-label="Bar chart of sprint completion percentages"></canvas></div>
+      {% else %}
+        <div class="dashboard-chart-empty">No sprints match the selected filters.</div>
+      {% endif %}
+    </article>
+  </div>
+  <div class="col-12 col-xl-6">
+    <article class="card dashboard-chart-card h-100 p-4">
+      <h2 class="h5">Team workload comparison</h2>
+      {% if chart_data.workload.has_sprint_data and chart_data.workload.labels %}
+        <div class="dashboard-chart-wrap"><canvas id="team-workload-chart" role="img" aria-label="Bar chart comparing allocated and remaining team capacity"></canvas></div>
+      {% else %}
+        <div class="dashboard-chart-empty">No workload data is available for the selected sprints.</div>
+      {% endif %}
+    </article>
+  </div>
+</section>
+
+<section class="card p-4 mb-4">
+  <div class="page-header">
+    <h2 class="h4">Sprint overview</h2>
+    <p>Completion is completed tasks divided by total tasks. Empty sprints show 0%.</p>
+  </div>
+  {% if sprint_progress %}
+    <div class="table-responsive">
+      <table class="table align-middle dashboard-data-table mb-0">
+        <thead><tr><th>Project / Sprint</th><th>Progress</th><th>Tasks</th><th>Completed</th><th>Remaining</th><th>Remaining effort</th></tr></thead>
+        <tbody>
+          {% for sprint in sprint_progress %}
+            <tr data-sprint-id="{{ sprint.id }}" data-completion="{{ sprint.completion }}">
+              <td><strong>{{ sprint.project_name }}</strong><div>{{ sprint.name }}</div><div class="small text-muted">{{ sprint.start_date }} — {{ sprint.end_date }}</div></td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress dashboard-progress" role="progressbar" aria-label="{{ sprint.name }} completion" aria-valuenow="{{ sprint.completion }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar bg-success" style="width: {{ sprint.completion }}%"></div>
+                  </div>
+                  <span class="small text-nowrap">{{ "%.1f"|format(sprint.completion) }}%</span>
+                </div>
+              </td>
+              <td>{{ sprint.total_tasks }}</td>
+              <td>{{ sprint.completed_tasks }}</td>
+              <td>{{ sprint.remaining_tasks }}</td>
+              <td>{{ "%.1f"|format(sprint.remaining_effort) }}h</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="dashboard-chart-empty">No sprints match the selected filters.</div>
+  {% endif %}
+</section>
+
+<section class="card p-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 page-header">
+    <div>
+      <h2 class="h4">Team workload</h2>
+      <p>Aggregated from the Phase 4 sprint workload calculation.</p>
+    </div>
+    {% if current_user.role in ['administrator', 'project_manager'] %}
+      <a class="btn btn-outline-primary" href="{{ url_for('management.allocations') }}">Open allocation dashboard</a>
+    {% endif %}
+  </div>
+  {% if workloads %}
+    <div class="table-responsive">
+      <table class="table align-middle dashboard-data-table mb-0">
+        <thead><tr><th>Team member</th><th>Allocated</th><th>Remaining capacity</th><th>Utilization</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for workload in workloads %}
+            <tr data-member-id="{{ workload.member_id }}">
+              <td><strong>{{ workload.member.name }}</strong><div class="small text-muted">{{ workload.member.skills or 'No skills listed' }}</div></td>
+              {% if workload.classification == 'no_data' %}
+                <td colspan="3" class="text-muted">No sprint data for the current filters</td>
+                <td><span class="badge text-bg-light">No data</span></td>
+              {% else %}
+                <td>{{ "%.1f"|format(workload.allocated) }}h</td>
+                <td class="{% if workload.remaining < 0 %}text-danger{% endif %}">{{ "%.1f"|format(workload.remaining) }}h</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress dashboard-progress" role="progressbar" aria-label="{{ workload.member.name }} utilization" aria-valuenow="{{ [workload.utilization, 100]|min }}" aria-valuemin="0" aria-valuemax="100">
+                      <div class="progress-bar {% if workload.classification == 'overloaded' %}bg-danger{% elif workload.classification == 'underutilized' %}bg-info{% else %}bg-success{% endif %}" style="width: {{ [workload.utilization, 100]|min }}%"></div>
+                    </div>
+                    <span class="small text-nowrap">{{ "%.1f"|format(workload.utilization) }}%</span>
+                  </div>
+                </td>
+                <td>
+                  {% if workload.classification == 'overloaded' %}
+                    <span class="badge text-bg-danger">Overloaded</span>
+                  {% elif workload.classification == 'underutilized' %}
+                    <span class="badge text-bg-info">Underutilized</span>
+                  {% else %}
+                    <span class="badge text-bg-success">Balanced</span>
+                  {% endif %}
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="dashboard-chart-empty">No team members are registered.</div>
+  {% endif %}
+</section>
+
+<script type="application/json" id="dashboard-chart-data">{{ chart_data|tojson }}</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
